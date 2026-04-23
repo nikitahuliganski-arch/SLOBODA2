@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ПАЗИК: ВОЗВРАЩЕНИЕ БИОМОВ</title>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+        
+        #game { position: relative; width: 100vw; height: 100vh; background: #333; overflow: hidden; display: none; transition: background 1.5s; }
+        
+        #menu, #leaderboard-screen {
+            position: absolute; width: 100%; height: 100%; background: #2c3e50;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 5000; color: white; text-align: center;
+        }
+        .menu-btn {
+            width: 260px; padding: 18px; margin: 10px; border-radius: 15px; border: 4px solid #fff;
+            font-size: 18px; font-weight: bold; color: white; cursor: pointer;
+        }
+        #btn-normal { background: #27ae60; }
+        #btn-inf { background: #8e44ad; }
+        #btn-stats { background: #34495e; border-color: #f1c40f; color: #f1c40f; }
+
+        .stats-box { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 15px; width: 80%; margin-bottom: 20px; }
+        .stats-line { display: flex; justify-content: space-between; margin: 10px 0; font-size: 20px; }
+
+        .curb { position: absolute; top: 0; width: 20px; height: 100%; z-index: 5; transition: background 1.5s; }
+        #curb-l { left: 0; } #curb-r { right: 0; }
+
+        #ui { 
+            position: absolute; top: 15px; left: 15px; z-index: 100; 
+            background: rgba(0,0,0,0.85); border-radius: 12px; padding: 12px;
+            color: white; border-left: 5px solid #2ecc71; width: 220px;
+        }
+
+        #dialog {
+            position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%);
+            width: 90%; background: rgba(30, 30, 30, 0.95); border: 2px solid #f1c40f; border-radius: 15px;
+            padding: 20px; z-index: 1000; display: none; text-align: center; color: white;
+        }
+        #sell-btn { background: #2ecc71; color: #fff; padding: 12px 30px; border-radius: 8px; border: none; font-weight: bold; }
+
+        #bus { 
+            position: absolute; bottom: 120px; left: 50%; width: 75px; height: 135px; 
+            background: #f1c40f; border: 4px solid #000; border-radius: 6px; z-index: 50;
+            transform: translateX(-50%); display: flex; flex-direction: column; align-items: center;
+        }
+        .win { width: 82%; height: 32px; background: #aed6f1; border: 2px solid #000; margin-top: 10px; }
+
+        .tamara { position: absolute; width: 55px; height: 55px; background: #ff69b4; border: 4px solid #fff; border-radius: 50%; z-index: 40; display: flex; justify-content: center; align-items: center; color: white; font-size: 9px; }
+        .cash { position: absolute; width: 40px; height: 20px; background: #27ae60; border: 2px solid #fff; border-radius: 3px; z-index: 30; display: flex; justify-content: center; align-items: center; color: white; font-size: 10px; font-weight: bold; }
+        .stop-zone { position: absolute; right: 20px; width: 65px; height: 180px; background: #2980b9; border: 4px solid #fff; border-radius: 15px; z-index: 10; }
+
+        #btns { position: absolute; bottom: 25px; width: 100%; display: flex; justify-content: space-around; align-items: center; z-index: 200; }
+        .btn { width: 85px; height: 75px; background: rgba(255,255,255,0.15); border: 2px solid #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 35px; }
+        #atk-btn { width: 100px; height: 80px; background: rgba(231, 76, 60, 0.7); font-size: 14px; border-radius: 20px; font-weight: bold; }
+
+        .bullet { position: absolute; width: 10px; height: 25px; background: #f1c40f; border-radius: 4px; z-index: 45; border: 1px solid #fff; }
+        .stripe { position: absolute; left: 50%; width: 10px; height: 90px; background: rgba(255,255,255,0.1); transform: translateX(-50%); }
+    </style>
+</head>
+<body>
+
+<div id="menu">
+    <h1 style="margin-bottom: 20px; color: #f1c40f;">ПАЗИК: СЛОБОДА ЭДИШН</h1>
+    <div class="menu-btn" id="btn-normal">ОБЫЧНЫЙ (10 КМ)</div>
+    <div class="menu-btn" id="btn-inf">БЕСКОНЕЧНЫЙ</div>
+    <div class="menu-btn" id="btn-stats">ТАБЛИЦА РЕКОРДОВ</div>
+</div>
+
+<div id="leaderboard-screen" style="display:none">
+    <h2>ВАШИ РЕКОРДЫ</h2>
+    <div class="stats-box">
+        <div class="stats-line"><span>Обычный:</span> <span id="best-normal">0</span>м</div>
+        <div class="stats-line"><span>Бесконечный:</span> <span id="best-inf">0</span>м</div>
+    </div>
+    <div class="menu-btn" onclick="location.reload()" style="background:#e74c3c">НАЗАД</div>
+</div>
+
+<div id="game">
+    <div id="darkness" style="position:absolute; width:100%; height:100%; background:rgba(0,0,30,0.7); display:none; pointer-events:none; z-index:80;"></div>
+    <div id="dialog">
+        <div id="dialog-text">Входите...</div>
+        <button id="sell-btn">ОБИЛЕТИТЬ (-5$)</button>
+    </div>
+    <div id="curb-l" class="curb"></div><div id="curb-r" class="curb"></div>
+    <div id="ui">
+        <div id="biome-label" style="color:#f1c40f; font-weight:bold; font-size:14px">Дорога в Слободу</div>
+        <div style="color: #2ecc71; font-size: 18px; font-weight: bold;">Баланс: <span id="cash-val">20</span>$</div>
+        <div style="font-size: 12px;">Путь: <span id="dist">0</span>м | Нервы: <span id="hp">100</span>%</div>
+    </div>
+    <div id="bus"><div class="win"></div><div class="win"></div></div>
+    <div id="btns">
+        <div class="btn" id="l-btn">◀</div>
+        <div id="atk-btn" class="btn">ОГОНЬ</div>
+        <div class="btn" id="r-btn">▶</div>
+    </div>
+</div>
+
+<script>
+const st = {
+    x: window.innerWidth / 2, velX: 0, dist: 0, hp: 100, money: 20,
+    speed: 7, active: false, isWaiting: false, input: 0, nextStop: 1000,
+    infinite: false
+};
+
+const BIOMES = [
+    { m: 0, n: "Дорога в Слободу", bg: "#333", s: "#444" },
+    { m: 1000, n: "Густой лес", bg: "#1e2b1a", s: "#2d5a27" },
+    { m: 2000, n: "Берег речки", bg: "#2c3e50", s: "#d4a373" },
+    { m: 3000, n: "Старый карьер", bg: "#444", s: "#7f8c8d" },
+    { m: 4000, n: "Золотое поле", bg: "#4d4d29", s: "#f1c40f" },
+    { m: 8000, n: "Ночная трасса", bg: "#000", s: "#000" }
+];
+
+const world = document.getElementById('game');
+const menu = document.getElementById('menu');
+const sellBtn = document.getElementById('sell-btn');
+
+document.getElementById('btn-stats').onclick = () => {
+    menu.style.display = 'none';
+    document.getElementById('leaderboard-screen').style.display = 'flex';
+    document.getElementById('best-normal').innerText = localStorage.getItem('pazik_normal') || 0;
+    document.getElementById('best-inf').innerText = localStorage.getItem('pazik_inf') || 0;
+};
+
+function saveScore() {
+    let key = st.infinite ? 'pazik_inf' : 'pazik_normal';
+    let currentBest = parseInt(localStorage.getItem(key)) || 0;
+    if (Math.floor(st.dist) > currentBest) localStorage.setItem(key, Math.floor(st.dist));
+}
+
+document.getElementById('btn-normal').onclick = () => startGame(false);
+document.getElementById('btn-inf').onclick = () => startGame(true);
+
+function startGame(isInf) {
+    st.infinite = isInf; st.active = true;
+    menu.style.display = 'none'; world.style.display = 'block';
+    engine();
+}
+
+for(let i=0; i<12; i++) {
+    let s = document.createElement('div'); s.className = 'stripe';
+    s.style.top = (i * 130) + 'px'; world.appendChild(s);
+}
+
+document.getElementById('l-btn').ontouchstart = (e) => { e.preventDefault(); if(!st.isWaiting) st.input = -1; };
+document.getElementById('r-btn').ontouchstart = (e) => { e.preventDefault(); if(!st.isWaiting) st.input = 1; };
+document.getElementById('l-btn').ontouchend = document.getElementById('r-btn').ontouchend = () => st.input = 0;
+document.getElementById('atk-btn').onclick = shoot;
+sellBtn.onclick = processQueue;
+
+function shoot() {
+    if(!st.active || st.isWaiting) return;
+    const b = document.createElement('div'); b.className = 'bullet';
+    b.style.left = st.x + 'px'; b.style.bottom = '260px';
+    world.appendChild(b);
+    let by = 260;
+    let bInt = setInterval(() => {
+        by += 15; b.style.bottom = by + 'px';
+        document.querySelectorAll('.tamara').forEach(t => {
+            let tr = t.getBoundingClientRect(), br = b.getBoundingClientRect();
+            if(!(br.right < tr.left || br.left > tr.right || br.bottom < tr.top || br.top > tr.bottom)) {
+                t.remove(); b.remove(); clearInterval(bInt);
+            }
+        });
+        if(by > window.innerHeight) { b.remove(); clearInterval(bInt); }
+    }, 20);
+}
+
+function spawnCash() {
+    if(!st.active || st.isWaiting) return;
+    const c = document.createElement('div'); c.className = 'cash'; c.innerText = '10$';
+    c.style.left = (Math.random() * (window.innerWidth - 100) + 50) + 'px';
+    c.style.top = '-50px'; world.appendChild(c);
+    let cy = -50;
+    let move = setInterval(() => {
+        if(!st.isWaiting) cy += st.speed; c.style.top = cy + 'px';
+        let br = document.getElementById('bus').getBoundingClientRect(), cr = c.getBoundingClientRect();
+        if(!(br.right < cr.left || br.left > cr.right || br.bottom < cr.top || br.top > cr.bottom)) {
+            st.money += 10; document.getElementById('cash-val').innerText = st.money;
+            c.remove(); clearInterval(move);
+        }
+        if(cy > window.innerHeight) { c.remove(); clearInterval(move); }
+    }, 20);
+}
+
+function spawnTamara() {
+    if(!st.active || st.isWaiting) return;
+    const t = document.createElement('div'); t.className = 'tamara'; t.innerText = 'ТАМАРА';
+    t.style.left = (Math.random() * (window.innerWidth - 120) + 60) + 'px'; t.style.top = '-100px';
+    world.appendChild(t);
+    let ty = -100;
+    let move = setInterval(() => {
+        if(!st.isWaiting) ty += st.speed; t.style.top = ty + 'px';
+        let br = document.getElementById('bus').getBoundingClientRect(), tr = t.getBoundingClientRect();
+        if(!(br.right < tr.left || br.left > tr.right || br.bottom < tr.top || br.top > tr.bottom)) {
+            st.hp -= 20; document.getElementById('hp').innerText = st.hp;
+            t.remove(); clearInterval(move); 
+            if(st.hp <= 0) { saveScore(); alert("РЕЙС ОКОНЧЕН! Дистанция: " + Math.floor(st.dist) + "м"); location.reload(); }
+        }
+        if(ty > window.innerHeight + 100) { t.remove(); clearInterval(move); }
+    }, 20);
+}
+
+function spawnStop() {
+    const sz = document.createElement('div'); sz.className = 'stop-zone'; sz.style.top = '-200px';
+    world.appendChild(sz);
+    let sy = -200, stopped = false;
+    let move = setInterval(() => {
+        if(!st.isWaiting) sy += st.speed; sz.style.top = sy + 'px';
+        let br = document.getElementById('bus').getBoundingClientRect(), sr = sz.getBoundingClientRect();
+        if(!stopped && !(br.right < sr.left || br.left > sr.right || br.bottom < sr.top || br.top > sr.bottom)) {
+            stopped = true; startStopSequence();
+        }
+        if(sy > window.innerHeight + 200) { sz.remove(); clearInterval(move); }
+    }, 20);
+}
+
+let queue = [];
+function startStopSequence() {
+    st.isWaiting = true; st.input = 0; st.velX = 0;
+    document.getElementById('dialog').style.display = 'block';
+    queue = ["Пассажир 1", "Пассажир 2"];
+    // ПРОВЕРКА НА НАТАЛЬЮ (ТОЛЬКО НА ПОЛЕ)
+    if (st.dist >= 4000 && st.dist < 6000) queue.push("Наталья");
+    showNextPassenger();
+}
+
+function showNextPassenger() {
+    if (queue.length > 0) {
+        let cur = queue[0];
+        document.getElementById('dialog-text').innerHTML = cur === "Наталья" ? "<span style='color:#f1c40f'>НАТАЛЬЯ:</span><br>До Слободы доеду?" : "Один талон!";
+        sellBtn.disabled = st.money < 5;
+    } else {
+        document.getElementById('dialog').style.display = 'none'; st.isWaiting = false;
+    }
+}
+
+function processQueue() {
+    if(st.money < 5) return;
+    st.money -= 5; document.getElementById('cash-val').innerText = st.money;
+    sellBtn.disabled = true;
+    setTimeout(() => { queue.shift(); showNextPassenger(); }, 800);
+}
+
+function engine() {
+    if(!st.active) return;
+    if(!st.isWaiting) {
+        if(st.input !== 0) st.velX += st.input * 0.8;
+        st.velX *= 0.85; st.x += st.velX;
+        if(st.x < 45) { st.x = 45; st.velX = 0; }
+        if(st.x > window.innerWidth - 45) { st.x = window.innerWidth - 45; st.velX = 0; }
+        st.dist += st.speed / 10; document.getElementById('dist').innerText = Math.floor(st.dist);
+        document.querySelectorAll('.stripe').forEach(s => {
+            let t = parseFloat(s.style.top) + st.speed;
+            if(t > window.innerHeight) t = -100; s.style.top = t + 'px';
+        });
+        if(st.dist >= st.nextStop) { spawnStop(); st.nextStop += 1000; }
+    }
+    document.getElementById('bus').style.left = st.x + 'px';
+    document.getElementById('bus').style.transform = `translateX(-50%) rotate(${st.velX * 1.5}deg)`;
+    
+    // ЛОГИКА БИОМОВ
+    const currentBiome = BIOMES.filter(b => st.dist >= b.m).pop();
+    if(currentBiome) {
+        document.getElementById('biome-label').innerText = currentBiome.n;
+        world.style.background = currentBiome.bg;
+        document.getElementById('curb-l').style.background = currentBiome.s;
+        document.getElementById('curb-r').style.background = currentBiome.s;
+    }
+    if(st.dist >= 8000) document.getElementById('darkness').style.display = 'block';
+
+    if(!st.infinite && st.dist >= 10000) { saveScore(); alert("ПОБЕДА В СЛОБОДЕ!"); location.reload(); }
+    requestAnimationFrame(engine);
+}
+
+setInterval(spawnTamara, 2500);
+setInterval(spawnCash, 3000);
+</script>
+</body>
+</html>
